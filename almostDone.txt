@@ -1,0 +1,1084 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package piano;
+import javax.imageio.*;
+import java.awt.image.BufferedImage;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.ChangeEvent;
+import javax.swing.*;
+import java.awt.MouseInfo;
+import java.awt.*;
+import java.awt.event.*;
+import static piano.displayFramework.runFrame;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import java.io.File;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.Polygon;
+import java.util.Arrays;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.midi.Sequence;
+import javax.sound.midi.Sequencer;
+import javax.sound.midi.MidiSystem;
+import javax.sound.midi.*;
+import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Random;
+import static piano.instrumentPanel.randomlyChosenIndex;
+
+
+
+//import static displayFramework.SwingConsole.runFrame;
+/**
+ *
+ * @author jelu
+ */
+class PianoFrame extends JFrame{
+    static final JFileChooser fileChooser = new JFileChooser();
+    static DrawingAppPanel dp=new DrawingAppPanel();
+    static PianoPanel pianoPanel=new PianoPanel();
+    public PianoFrame(){
+        //DrawingAppPanel dp= new DrawingAppPanel();
+        JPanel draw= dp.drawingJPanel;
+        draw.setPreferredSize(new Dimension(250,200));//set size of drawing panel
+        draw.setBorder(BorderFactory.createLineBorder(Color.black));//create a border for it
+        add(draw,BorderLayout.LINE_END);//put the drawing panel on the right
+        
+        add(pianoPanel.environmentJPanel);//add panel that contains piano
+        ClearButtonPanel clearbutton=new ClearButtonPanel();
+        add(clearbutton,BorderLayout.PAGE_END);
+        SaveButtonPanel savebutton=new SaveButtonPanel();
+        add(savebutton,BorderLayout.SOUTH);
+        
+        
+        //Label
+        textPanel textPanel = new textPanel();
+        textPanel.setBorder(BorderFactory.createLineBorder(Color.black));
+        add(textPanel,BorderLayout.PAGE_START);
+        
+        //Insturment Selecction stuff goes right here!!!!
+        instrumentPanel instrumentPanel = new instrumentPanel();
+        instrumentPanel.setBorder(BorderFactory.createLineBorder(Color.black));
+        add(instrumentPanel, BorderLayout.WEST);
+    }
+}
+
+class DrawingAppPanel extends JPanel {
+    static BufferedImage bimage = new BufferedImage(250, 900,BufferedImage.TRANSLUCENT);//puts the image to something you can save
+    //all the following variables are used to draw the image from the keys
+    static ArrayList<ArrayList<Point>> listOfLists = new ArrayList<ArrayList<Point>>();//keeps track of drawn points
+    static ArrayList<Color> ColorOrder = new ArrayList();//keeps track of the colors that drew each point
+    {ColorOrder.add(Color.WHITE);}//colorOrder starts off with a white color
+    static boolean addPoint=false;//initially we don't need to add any random points
+    static Random random=new Random();
+    static Point startPoint =new Point(random.nextInt(100)+50,random.nextInt(800));//this determines a random start point
+    
+    static public JPanel drawingJPanel;//this is the panel that gets drawn on
+    static Color paintColor=Color.WHITE;
+    //the following timer paints to the canvas when a key is clicked/pressed
+    static Timer paintTimer=new Timer(50,event->{
+        Random ran=new Random();
+        //if we don't have any points, we need to get one from our random start point
+        if(listOfLists.isEmpty()){
+            ArrayList<Point> tempList=new ArrayList();
+            tempList.add(startPoint);
+            listOfLists.add(tempList);
+        }
+        //just in case our colorOrder gets emptied, we add white so number of points and Color Order match in size
+        if(ColorOrder.isEmpty()){
+            ArrayList<Point> tempList=new ArrayList();
+            ColorOrder.add(Color.WHITE);
+        }
+        //when a button is pressed, the paintColor changes
+        ColorOrder.add(paintColor);
+        //after the user lifts off the key, the drawing should start somewhere
+        //so we need to add a random point to our points drawn
+        if (addPoint==true){
+            ArrayList<Point> tempList=new ArrayList();
+            tempList.add(new Point(random.nextInt(250),random.nextInt(600)));
+            listOfLists.add(tempList);
+            Color[] PianoColors= {Color.BLUE,Color.MAGENTA,Color.CYAN};
+            int colorIndex=ran.nextInt(3);
+            DrawingAppPanel.ColorOrder.add(PianoColors[colorIndex]);
+        }
+        addPoint=false;//after we add a point, we are done
+        //last point grabs the last point that was added to our points drawn list
+        Point lastPoint=DrawingAppPanel.listOfLists.get(DrawingAppPanel.listOfLists.size()-1).get(0);
+        //we create a point that is close to that last point so it looks like a line being drawn. 
+        Point close=new Point(lastPoint.x+ran.nextInt(20)-10,lastPoint.y+ran.nextInt(20)-10);
+        ArrayList<Point> tempList=new ArrayList();
+        tempList.add(close);
+        listOfLists.add(tempList);
+        drawingJPanel.repaint();
+    });
+    
+    
+    //the constructor of the drawing panel 
+    public DrawingAppPanel() {
+        drawingJPanel = new JPanel() {
+            @Override
+            public void paintComponent(Graphics g) {
+                setBackground(Color.WHITE);
+                super.paintComponent(g);
+                //create the image that we can eventualy save
+                Graphics2D g2d = bimage.createGraphics();
+                g2d.setColor(Color.WHITE);
+                g2d.drawRect(0, 0, 250, 900);
+                //basically for each point, we draw the point.
+                for(int i=0;i<DrawingAppPanel.listOfLists.size();i++){
+                    //get the point and set the color, then draw to panel
+                    ArrayList<Point> pp=DrawingAppPanel.listOfLists.get(i);
+                    Color color=DrawingAppPanel.ColorOrder.get(i);
+                    g.setColor(color);
+                    g.drawOval(pp.get(0).x,pp.get(0).y,10,10);
+                    g.fillOval(pp.get(0).x, pp.get(0).y, 10, 10);
+                    //then we draw to the BufferedImage we save later
+                    g2d.setColor(color);
+                    g2d.drawOval(pp.get(0).x,pp.get(0).y,10,10);
+                    g2d.fillOval(pp.get(0).x, pp.get(0).y, 10, 10);
+                    
+                }
+                
+            }
+        };
+  
+    }
+}
+//this is the Piano in the middle of the screen
+class PianoPanel extends JPanel {
+    //made a sequencer for each note so it doesn't glitch on
+    static Sequencer sequencer;
+    static Sequencer sequencerCs;
+    static Sequencer SequencerD;
+    static Sequencer SequencerDs;
+    static Sequencer SequencerE;
+    static Sequencer SequencerF;
+    static Sequencer SequencerFs;
+    static Sequencer SequencerG;
+    static Sequencer SequencerGs;
+    static Sequencer SequencerA;
+    static Sequencer SequencerAs;
+    static Sequencer SequencerB;
+    
+    
+    static JPanel environmentJPanel;
+    //these colors are in control of what each Key is painted
+    static Color Ccolor;
+    static Color Cscolor;
+    static Color Dcolor;
+    static Color Dscolor;
+    static Color Ecolor;
+    static Color Fcolor;
+    static Color Fscolor;
+    static Color Gcolor;
+    static Color Gscolor;
+    static Color Acolor;
+    static Color Ascolor;
+    static Color Bcolor;
+    // in the constructor we are drawing all the keys,
+    static String FileChoice="";
+    
+    static String OctaveChoice="";
+    
+    public PianoPanel() {
+        //we also need to open each sequencer so each note has a place to go
+        try{
+        sequencer = MidiSystem.getSequencer();
+        sequencer.open();
+        sequencerCs=MidiSystem.getSequencer();
+        sequencerCs.open();
+        SequencerD=MidiSystem.getSequencer();
+        SequencerD.open();
+        SequencerDs=MidiSystem.getSequencer();
+        SequencerDs.open();
+        SequencerE=MidiSystem.getSequencer();
+        SequencerE.open();
+        SequencerF=MidiSystem.getSequencer();
+        SequencerF.open();
+        SequencerFs=MidiSystem.getSequencer();
+        SequencerFs.open();
+        SequencerG=MidiSystem.getSequencer();
+        SequencerG.open();
+        SequencerGs=MidiSystem.getSequencer();
+        SequencerGs.open();
+        SequencerA=MidiSystem.getSequencer();
+        SequencerA.open();
+        SequencerAs=MidiSystem.getSequencer();
+        SequencerAs.open();
+        SequencerB=MidiSystem.getSequencer();
+        SequencerB.open();
+        
+        }catch(Exception ee){}
+        
+        environmentJPanel = new JPanel() {
+            
+            @Override
+            public void paint(Graphics g) {
+                //in here there is some logic 
+                //of what color to draw
+                //each key in case of a click
+                //or key press
+                setBackground(Color.WHITE);
+                super.paint(g);
+                Polygon C = new Polygon();
+                C.addPoint(200, 200);
+                C.addPoint(200,400);
+                C.addPoint(250,400);
+                C.addPoint(250,280);
+                C.addPoint(230,280); 
+                C.addPoint(230,200);
+                g.drawPolygon(C);
+                if(Ccolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(C);
+                }
+                g.setColor(Color.BLACK);
+                
+                Polygon Cs=new Polygon();
+                Cs.addPoint(230,200);Cs.addPoint(270,200);
+                Cs.addPoint(270,280);Cs.addPoint(230, 280);
+                g.drawPolygon(Cs);
+                if(Cscolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(Cs);
+                }
+                else{
+                    g.setColor(Color.BLACK);
+                    g.fillPolygon(Cs);
+                }
+                
+                Polygon D= new Polygon();
+                D.addPoint(270, 200);
+                D.addPoint(270, 280);D.addPoint(250, 280);
+                D.addPoint(250, 400);D.addPoint(300, 400);
+                D.addPoint(300, 280);D.addPoint(280, 280);D.addPoint(280, 200);
+                g.drawPolygon(D);
+                if(Dcolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(D);
+                }
+                Polygon Ds=new Polygon();
+                
+                Ds.addPoint(280,200);Ds.addPoint(280, 280);
+                Ds.addPoint(320,280);Ds.addPoint(320,200);
+                g.drawPolygon(Ds);
+                if(Dscolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(Ds);
+                }else{
+                    g.setColor(Color.BLACK);
+                    g.fillPolygon(Ds);
+                }
+                
+                Polygon E=new Polygon();
+                E.addPoint(320,200); E.addPoint(320,280);
+                E.addPoint(300,280); E.addPoint(300, 400);
+                E.addPoint(350,400); E.addPoint(350,200);
+                g.drawPolygon(E);
+                if(Ecolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(E);
+                }
+                
+                Polygon F= new Polygon();
+                F.addPoint(350,200);F.addPoint(380,200);
+                F.addPoint(380,280);F.addPoint(400,280);
+                F.addPoint(400,400);F.addPoint(350,400);
+                g.drawPolygon(F);
+                if(Fcolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(F);
+                }
+                
+                Polygon Fs=new Polygon(); 
+                Fs.addPoint(380,200);Fs.addPoint(420,200);
+                Fs.addPoint(420,280); Fs.addPoint(380,280);
+                g.drawPolygon(Fs);
+                g.fillPolygon(Fs);
+                if(Fscolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(Fs);
+                }else{
+                    g.setColor(Color.BLACK);
+                    g.fillPolygon(Fs);
+                }
+                
+                Polygon G=new Polygon();
+                G.addPoint(420,200); G.addPoint(430,200);
+                G.addPoint(430,280); G.addPoint(450,280);
+                G.addPoint(450,400); G.addPoint(400,400);
+                G.addPoint(400,280); G.addPoint(420,280);
+                g.drawPolygon(G);
+                if(Gcolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(G);
+                }
+                    
+                Polygon Gs=new Polygon();
+                Gs.addPoint(430,200); Gs.addPoint(470,200);
+                Gs.addPoint(470,280); Gs.addPoint(430,280);
+                g.drawPolygon(Gs);
+                g.fillPolygon(Gs);
+                if(Gscolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(Gs);
+                }else{
+                    g.setColor(Color.BLACK);
+                    g.fillPolygon(Gs);
+                }
+                
+                Polygon A= new Polygon();
+                A.addPoint(470,200); A.addPoint(480,200);
+                A.addPoint(480,280); A.addPoint(500,280);
+                A.addPoint(500,400); A.addPoint(450,400);
+                A.addPoint(450, 280); A.addPoint(470,280);
+                g.drawPolygon(A);
+                if(Acolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(A);
+                }
+                
+                Polygon Bb= new Polygon();
+                Bb.addPoint(480,200); Bb.addPoint(520,200);
+                Bb.addPoint(520,280); Bb.addPoint(480,280);
+                g.drawPolygon(Bb);
+                g.fillPolygon(Bb);
+                if(Ascolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(Bb);
+                }else{
+                    g.setColor(Color.BLACK);
+                    g.fillPolygon(Bb);
+                }
+                
+                Polygon B= new Polygon();
+                B.addPoint(520,200); B.addPoint(550,200);
+                B.addPoint(550,400); B.addPoint(500,400);
+                B.addPoint(500,280); B.addPoint(520, 280);
+                g.drawPolygon(B);
+                if(Bcolor==Color.GRAY){
+                    g.setColor(Color.GRAY);
+                    g.fillPolygon(B);
+                }
+          
+            /////////////////////////////////////////////////////////
+            /////////////////////////////////////////////////////////
+            //input map and action map for key on and key release
+            InputMap inputMap = environmentJPanel.getInputMap();
+            ActionMap actionMap = environmentJPanel.getActionMap();
+            
+            //all key bindings for keyboard
+            ////////////////////////////////
+            //key ons///////////////////////
+            Action CKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ccolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("c");
+            }
+            };
+            Action CsKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Cscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("cs");
+                }
+            };
+            Action DKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Dcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("d");
+                }
+            };
+            Action DsKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Dscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("ds");
+                }
+            };
+            Action EKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ecolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("e");
+                }
+            };
+            Action FKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Fcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("f");
+                }
+            };
+            Action FsKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Fscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("fs");
+                }
+            };
+            Action GKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Gcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("g");
+                }
+            };
+            Action GsKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Gscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("gs");                }
+            };
+            Action AKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Acolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("a");
+                }
+            };
+            Action BbKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ascolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("as");
+                }
+               
+            };
+            Action BKey = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Bcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                KeyPlayer.play("b");
+                }
+            };
+            //these are all the release actions that we will put in the action map
+            Action ReleaseC = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ccolor=Color.WHITE;
+                environmentJPanel.repaint();
+                sequencer.stop();
+                
+                }
+            };
+            Action ReleaseCs = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Cscolor=Color.BLACK;
+                environmentJPanel.repaint();
+                sequencerCs.stop();
+                }
+            };
+            Action ReleaseD = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Dcolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerD.stop();
+                }
+            };
+            Action ReleaseDs = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Dscolor=Color.BLACK;
+                environmentJPanel.repaint();
+                SequencerDs.stop();
+                }
+            };
+            Action ReleaseE = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ecolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerE.stop();
+                }
+            };
+            Action ReleaseF = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Fcolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerF.stop();
+                }
+            };
+            Action ReleaseFs = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Fscolor=Color.BLACK;
+                environmentJPanel.repaint();
+                SequencerFs.stop();
+                }
+            };
+            Action ReleaseG = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Gcolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerG.stop();
+                }
+            };
+            Action ReleaseGs = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Gscolor=Color.BLACK;
+                environmentJPanel.repaint();
+                SequencerGs.stop();
+                }
+            };
+            Action ReleaseA = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Acolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerA.stop();
+                }
+            };
+            Action ReleaseAs = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Ascolor=Color.BLACK;
+                environmentJPanel.repaint();
+                SequencerAs.stop();
+                }
+            };
+            Action ReleaseB = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                PianoPanel.Bcolor=Color.WHITE;
+                environmentJPanel.repaint();
+                SequencerB.stop();
+                }
+            };
+            actionMap.put("cnat", CKey);
+            actionMap.put("cnatR",ReleaseC);
+            actionMap.put("csharp", CsKey);
+            actionMap.put("csharpR",ReleaseCs);
+            actionMap.put("dnat", DKey);
+            actionMap.put("dnatR",ReleaseD);
+            actionMap.put("dsharp", DsKey);
+            actionMap.put("dsharpR",ReleaseDs);
+            actionMap.put("enat", EKey);
+            actionMap.put("enatR",ReleaseE);
+            actionMap.put("fnat", FKey);
+            actionMap.put("fnatR",ReleaseF);
+            actionMap.put("fsharp", FsKey);
+            actionMap.put("fsharpR",ReleaseFs);
+            actionMap.put("gnat", GKey);
+            actionMap.put("gnatR",ReleaseG);
+            actionMap.put("gsharp", GsKey);
+            actionMap.put("gsharpR",ReleaseGs);
+            actionMap.put("anat", AKey);
+            actionMap.put("anatR",ReleaseA);
+            actionMap.put("bflatR",ReleaseAs);
+            actionMap.put("bflat", BbKey);
+            actionMap.put("bnat", BKey);
+            actionMap.put("bnatR",ReleaseB);
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A,0,true),"cnatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W,0,true),"csharpR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D,0,true),"dnatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_R,0,true),"dsharpR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F,0,true),"enatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_G,0,true),"fnatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T,0,true),"fsharpR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_H,0,true),"gnatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_U,0,true),"gsharpR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_J,0,true),"anatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_I,0,true),"bflatR");
+            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_K,0,true),"bnatR");
+            inputMap.put(KeyStroke.getKeyStroke('a'),"cnat");
+            inputMap.put(KeyStroke.getKeyStroke('w'), "csharp");
+            inputMap.put(KeyStroke.getKeyStroke('d'), "dnat");
+            inputMap.put(KeyStroke.getKeyStroke('r'), "dsharp");
+            inputMap.put(KeyStroke.getKeyStroke('f'), "enat");
+            inputMap.put(KeyStroke.getKeyStroke('g'), "fnat");
+            inputMap.put(KeyStroke.getKeyStroke('t'), "fsharp");
+            inputMap.put(KeyStroke.getKeyStroke('h'), "gnat");
+            inputMap.put(KeyStroke.getKeyStroke('u'), "gsharp");
+            inputMap.put(KeyStroke.getKeyStroke('j'), "anat");
+            inputMap.put(KeyStroke.getKeyStroke('i'), "bflat");
+            inputMap.put(KeyStroke.getKeyStroke('k'), "bnat");
+            
+            
+            
+            environmentJPanel.addMouseListener(new MouseListener(){
+                
+          @Override
+          public void mousePressed(MouseEvent e) {
+            Color[] PianoColors= {Color.BLUE,Color.MAGENTA,Color.CYAN};
+            Random randColor=new Random();
+            int colorIndex=randColor.nextInt(3);
+            DrawingAppPanel.paintColor=PianoColors[colorIndex];
+            Random ran=new Random();
+            if(C.contains(e.getX(),e.getY())) { 
+                PianoPanel.Ccolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("c");
+                
+            }
+            
+            if(Cs.contains(e.getX(),e.getY())){
+                PianoPanel.Cscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("cs");
+                }
+            if(D.contains(e.getX(),e.getY())){ 
+                PianoPanel.Dcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("d");
+            }
+            if(Ds.contains(e.getX(),e.getY())){ 
+                PianoPanel.Dscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("ds");
+            }
+            if(E.contains(e.getX(),e.getY())){
+                PianoPanel.Ecolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("e");
+            }
+            if(F.contains(e.getX(),e.getY())){
+                PianoPanel.Fcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("f");
+            }
+            if(Fs.contains(e.getX(),e.getY())){
+                PianoPanel.Fscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("fs");
+            }
+            if(G.contains(e.getX(),e.getY())){
+                PianoPanel.Gcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("g");
+            }
+            if(Gs.contains(e.getX(),e.getY())){
+                PianoPanel.Gscolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("gs");
+            }
+            if(A.contains(e.getX(),e.getY())){
+                PianoPanel.Acolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("a");
+                }
+            if(Bb.contains(e.getX(),e.getY())){                
+            PianoPanel.Ascolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("as");
+            }
+            if(Bb.contains(e.getX(),e.getY())){                
+            PianoPanel.Ascolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("as");
+            }
+            if(B.contains(e.getX(),e.getY())){                
+            PianoPanel.Bcolor=Color.GRAY;
+                environmentJPanel.repaint();
+                PianoFrame.dp.paintTimer.start();
+                KeyPlayer.play("b");
+            }
+          }
+                    
+
+          @Override
+          public void mouseClicked(MouseEvent e) {
+              
+              DrawingAppPanel.addPoint=true;
+        
+          }
+          @Override
+          public void mouseReleased(MouseEvent e) {
+              PianoPanel.Ccolor=Color.WHITE;
+              PianoPanel.Cscolor=Color.BLACK;
+              PianoPanel.Dcolor=Color.WHITE;
+              PianoPanel.Dscolor=Color.BLACK;
+              PianoPanel.Ecolor=Color.WHITE;
+              PianoPanel.Fcolor=Color.WHITE;
+              PianoPanel.Fscolor=Color.BLACK;
+              PianoPanel.Gcolor=Color.WHITE;
+              PianoPanel.Gscolor=Color.BLACK;
+              PianoPanel.Acolor=Color.WHITE;
+              PianoPanel.Ascolor=Color.BLACK;
+              PianoPanel.Bcolor=Color.WHITE;
+              environmentJPanel.repaint();
+              
+              if(PianoFrame.dp.paintTimer.isRunning()){
+                  PianoFrame.dp.paintTimer.stop();
+              }
+              PianoFrame.dp.paintTimer.stop();
+              sequencer.stop();
+              sequencerCs.stop();
+              SequencerD.stop();
+              SequencerDs.stop();
+              SequencerE.stop();
+              SequencerF.stop();
+              SequencerFs.stop();
+              SequencerG.stop();
+              SequencerGs.stop();
+              SequencerA.stop();
+              SequencerAs.stop();
+              SequencerB.stop();
+              
+          }
+          @Override
+          public void mouseEntered(MouseEvent e) {
+          }
+          @Override
+          public void mouseExited(MouseEvent e) {
+          }
+
+          });
+          }
+          };//end constructor
+        //add(environmentJPanel);
+        //environmentJPanel.add(recordButton);
+        //made slider, still need to add logic to change volume
+        //VolumeSlide.addChangeListener(new SliderListener());
+                
+        //environmentJPanel.add(VolumeSlide);
+        
+        
+    }
+    
+
+    public int getSlideNum(){
+        //return VolumeSlide.getValue();
+        return 0;
+
+    }
+
+}
+class ClearButtonPanel extends JPanel{
+    public ClearButtonPanel(){
+    JButton clear=new JButton("clear");
+    clear.setFocusable(false);
+    add(clear);
+    clear.addMouseListener(new MouseListener(){
+        @Override
+        public void mousePressed(MouseEvent e) {}
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            
+        DrawingAppPanel.listOfLists.clear();
+        DrawingAppPanel.ColorOrder.clear();
+        //DrawingAppPanel.tempPoints.clear();
+        PianoFrame.dp.drawingJPanel.repaint();
+        }
+        @Override
+        public void mouseReleased(MouseEvent e) {}
+        @Override
+        public void mouseEntered(MouseEvent e) {}
+        @Override
+        public void mouseExited(MouseEvent e) {}
+
+        });
+  
+    }
+};
+class SaveButtonPanel extends JPanel{
+    public SaveButtonPanel(){
+    JButton save=new JButton("Save");
+    save.setFocusable(false);
+    add(save);
+    save.addActionListener(event -> {
+
+int choiceCode = PianoFrame.fileChooser.showSaveDialog(this);
+            
+            if (choiceCode == JFileChooser.APPROVE_OPTION) {
+                File outputFile = PianoFrame.fileChooser.getSelectedFile();
+                
+                try {
+                    ImageIO.write(DrawingAppPanel.bimage, "png", outputFile);
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(this,"Failed to write file");
+                }
+            }
+
+        });
+
+    }
+};
+class KeyPlayer{
+    static void play(String KeyName){
+        String instrument=PianoPanel.FileChoice;
+        String octave=PianoPanel.OctaveChoice;
+        String Number="";
+        if(octave=="Low" && instrument=="Piano"){
+            Number="3";
+        }
+        if(octave=="Low" && instrument=="Bass"){
+            Number="3";
+        }
+        if(octave=="Low" && instrument=="Drum"){
+            Number="2";
+        }
+        if(octave=="Mid" && instrument=="Piano"){
+            Number="4";
+        }
+        if(octave=="Mid" && instrument=="Bass"){
+            Number="4";
+        }
+        if(octave=="Mid" && instrument=="Drum"){
+            Number="3";
+        }
+        if(octave=="High" && instrument=="Piano"){
+            Number="5";
+        }
+        if(octave=="High" && instrument=="Bass"){
+            Number="5";
+        }
+        if(octave=="High" && instrument=="Drum"){
+            Number="4";
+        }
+        //System.out.println(Number);
+        switch (KeyName) {
+            case "c":
+                if(PianoPanel.sequencer.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/c"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.sequencer.open();
+                    PianoPanel.sequencer.setSequence(sequence);
+                    PianoPanel.sequencer.setLoopCount(0);
+                    PianoPanel.sequencer.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "cs":
+                if(PianoPanel.sequencerCs.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/cs"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.sequencerCs.open();
+                    PianoPanel.sequencerCs.setSequence(sequence);
+                    PianoPanel.sequencerCs.setLoopCount(0);
+                    PianoPanel.sequencerCs.start();
+                } catch (Exception e1) {System.out.println("no");}
+                }
+                break;
+                
+            case "d":
+                if(PianoPanel.SequencerD.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/d"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerD.open();
+                    PianoPanel.SequencerD.setSequence(sequence);
+                    PianoPanel.SequencerD.setLoopCount(0);
+                    PianoPanel.SequencerD.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "ds":
+                if(PianoPanel.SequencerDs.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/ds"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerDs.open();
+                    PianoPanel.SequencerDs.setSequence(sequence);
+                    PianoPanel.SequencerDs.setLoopCount(0);
+                    PianoPanel.SequencerDs.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "e":
+                if(PianoPanel.SequencerE.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/e"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerE.open();
+                    PianoPanel.SequencerE.setSequence(sequence);
+                    PianoPanel.SequencerE.setLoopCount(0);
+                    PianoPanel.SequencerE.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }    
+                break;
+            case "f":
+                if(PianoPanel.SequencerF.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/f"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerF.open();
+                    PianoPanel.SequencerF.setSequence(sequence);
+                    PianoPanel.SequencerF.setLoopCount(0);
+                    PianoPanel.SequencerF.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "fs":
+                if(PianoPanel.SequencerFs.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/fs"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerFs.open();
+                    PianoPanel.SequencerFs.setSequence(sequence);
+                    PianoPanel.SequencerFs.setLoopCount(0);
+                    PianoPanel.SequencerFs.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "g":
+                if(PianoPanel.SequencerG.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/g"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerG.open();
+                    PianoPanel.SequencerG.setSequence(sequence);
+                    PianoPanel.SequencerG.setLoopCount(0);
+                    PianoPanel.SequencerG.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "gs":
+                if(PianoPanel.SequencerGs.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/gs"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerGs.open();
+                    PianoPanel.SequencerGs.setSequence(sequence);
+                    PianoPanel.SequencerGs.setLoopCount(0);
+                    PianoPanel.SequencerGs.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "a":
+                if(PianoPanel.SequencerA.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/a"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerA.open();
+                    PianoPanel.SequencerA.setSequence(sequence);
+                    PianoPanel.SequencerA.setLoopCount(0);
+                    PianoPanel.SequencerA.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }   
+                break;
+            case "as":
+                if(PianoPanel.SequencerAs.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/as"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerAs.open();
+                    PianoPanel.SequencerAs.setSequence(sequence);
+                    PianoPanel.SequencerAs.setLoopCount(0);
+                    PianoPanel.SequencerAs.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            case "b":
+                if(PianoPanel.SequencerB.isRunning()){}
+                else{
+                try {
+                    Sequence sequence = MidiSystem.getSequence(new File("resources/b"+Number+instrument+".mid").getAbsoluteFile());
+                    PianoPanel.SequencerB.open();
+                    PianoPanel.SequencerB.setSequence(sequence);
+                    PianoPanel.SequencerB.setLoopCount(0);
+                    PianoPanel.SequencerB.start();
+                } catch (Exception e1) {System.out.println("no");
+                }
+                }
+                break;
+            default: 
+                     break;
+        }
+        
+    }
+}
+class instrumentPanel extends JPanel{
+    public static final Random RNG = new Random();
+    static public JPanel instrumentPanel;
+    static public JList instrumentList;
+    public static String [] instruments = {"Piano","Drum", "Bass"};
+    static public int randomlyChosenIndex;
+    static public int randomOctaveIndex;
+    static public JList octaveList;
+    public static String [] octaves = {"Low","Mid","High"};
+    public instrumentPanel(){
+        instrumentPanel = new JPanel();
+        
+        instrumentList = new JList(instruments);
+        instrumentList.setFocusable(false);
+        instrumentList.setVisibleRowCount(3);
+        instrumentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); 
+        instrumentPanel.setLayout(new FlowLayout());
+        instrumentPanel.add(instrumentList);
+        octaveList = new JList(octaves);
+        octaveList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        instrumentList.addListSelectionListener((event)->{
+            if(!event.getValueIsAdjusting()) return;
+            int [] selectedIndices = instrumentList.getSelectedIndices();
+            int randomlyChosenIndex = selectedIndices[RNG.nextInt(selectedIndices.length)];
+            //enter the change in the midi file that is deteceted when clicking on the piano keys or pressing the corresponding keys.
+            PianoPanel.FileChoice=instruments[randomlyChosenIndex];
+            //System.out.println("Index: " + randomlyChosenIndex);
+            
+        });
+        octaveList.addListSelectionListener((event)->{
+            int [] selectedOctave = octaveList.getSelectedIndices();
+            int randomOctaveIndex = selectedOctave[RNG.nextInt(selectedOctave.length)];
+            PianoPanel.OctaveChoice=octaves[randomOctaveIndex];
+            octaveList.setFocusable(false);
+        });
+        add(instrumentPanel);
+        
+        JScrollPane scrollPane = new JScrollPane(instrumentList);
+        scrollPane.setPreferredSize(new Dimension(75, 100));
+        add(scrollPane);
+        
+        JScrollPane octavePane = new JScrollPane(octaveList);
+        octavePane.setPreferredSize(new Dimension(75, 100));
+        add(octavePane);
+    }
+    
+}
+
+class textPanel extends JPanel{
+    static public JPanel textPanel;
+    static public JLabel label;
+    public textPanel(){
+        textPanel = new JPanel();
+        label = new JLabel("JFrame by Example",JLabel.LEFT);
+        textPanel.setLayout(new FlowLayout());
+        textPanel.add(label = new JLabel());
+        add(textPanel);
+    }
+}
+public class Piano {
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+      
+        
+        runFrame(new PianoFrame(), 1200,900);
+}
+}
+    
+
+//to paint
+//generate 100points
+//we wont' use them all
+
+//for each point in that list
+//we will draw a line between 1st two points
+//using a timer....???

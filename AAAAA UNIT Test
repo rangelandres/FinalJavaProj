@@ -1,0 +1,19 @@
+@Test
+    public void instrumentListHasPianoDrumBass(){
+        instrumentPanel IP = new instrumentPanel();
+        String [] testInstruments = {"Piano","Drum","Bass"};
+        String [] testOctaves ={"Low","Mid","High"};
+        assertArrayEquals("Error message",instrumentPanel.instruments, testInstruments);
+        assertArrayEquals("Error message",instrumentPanel.octaves, testOctaves);
+}
+    
+    @Test
+    public void RandomIndexShouldBeZero(){
+        instrumentPanel iP = new instrumentPanel();
+        int testInstrumentIndex = 0;
+        int testOctaveIndex = 0;
+        if(instrumentPanel.randomlyChosenIndex != 0) fail("Did not initialize instruments to zero");
+        if(instrumentPanel.randomOctaveIndex != 0) fail("Did not initialize octaves to zero");
+    }
+    
+}
